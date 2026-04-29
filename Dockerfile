@@ -1,35 +1,39 @@
 # Stage 1 — Install dependencies and build
 FROM node:18-alpine AS builder
 
-# Set working directory inside container
 WORKDIR /app
 
-# Copy package files first (layer caching — if packages don't change, this layer is reused)
+# Copy package files first (layer caching — faster rebuilds)
 COPY package*.json ./
 
-# Install dependencies
+# Install all dependencies
 RUN npm install
 
-# Copy rest of the code
+# Copy rest of the source code
 COPY . .
 
-# Build the Next.js app for production
+# Build Next.js app — output goes into .next/standalone/
 RUN npm run build
 
-# Stage 2 — Run only the built output (smaller final image)
+# Stage 2 — Run only the standalone output (tiny final image)
 FROM node:18-alpine AS runner
 
 WORKDIR /app
 
-# Copy only what's needed to run — not the full source code
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/public ./public
+# Copy the standalone server (contains only what's needed to run)
+COPY --from=builder /app/.next/standalone ./
+
+# Copy static assets (CSS, JS chunks, images)
+COPY --from=builder /app/.next/static ./.next/static
+
+# Copy your JSON data files
 COPY --from=builder /app/data ./data
 
-# Expose port 3000 (Next.js default)
+# Expose port 3000 (Next.js default port)
 EXPOSE 3000
 
-# Start the app
-CMD ["npm", "start"]
+# Set environment to production
+ENV NODE_ENV=production
+
+# Start using the standalone server.js
+CMD ["node", "server.js"]
