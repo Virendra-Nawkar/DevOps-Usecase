@@ -40,6 +40,7 @@
 ---
 
 ## 🏗️ Architecture Overview
+![Working Architecture](Working%20Architectue.png)
 
 ```
 Developer (Linux VM)
